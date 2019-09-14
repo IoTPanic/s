@@ -198,7 +198,7 @@ bool s::addToTransaction(s::message *m, s::transaction *t){
     memcpy(&t->pyld[loc], m->pyld, m->len);
     t->received += m->len;
     if(t->received==t->size){
-        submitTransaction(t);
+        return submitTransaction(t);
     }
     return true;
 }
@@ -219,6 +219,7 @@ bool s::submitTransaction(transaction *t){
         }
     }
     devalidateTransaction(t);
+    return true;
 }
 
 void s::devalidateTransaction(transaction *t){
