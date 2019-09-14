@@ -24,7 +24,7 @@
 #define RECEIVE_FAIL_BAD_FRAME_ID 0x5 // Frame was late or out of order
 #define RECEIVE_FAIL_OTHER 0x6
 
-#define MAX_PAYLOAD_SIZE 1500
+#define MAX_PAYLOAD_SIZE 1499 // WiFi frame with ESP, may need to make a little smaller due to overhead in the UDP lib
 #define TTL 1000
 
 class s
@@ -33,6 +33,7 @@ class s
     typedef struct{
         bool downstream = false;
         bool compressed = false;
+        uint8_t type = 0x0;
         uint8_t version = 0x0;
         uint8_t nodeID = 0;
         uint8_t session = 0;
@@ -52,8 +53,9 @@ class s
 
     typedef struct {
         unsigned index = 0;
-        uint16_t received = 0;
-        uint16_t size = 0;
+        uint16_t received = 0; // How many bytes have been received
+        unsigned chunksReceived = 0;
+        uint16_t size = 0; // Total transaction size
         uint8_t *pyld = NULL;
         uint8_t checksum = 0x0;
         uint8_t frame = 0;
@@ -62,6 +64,7 @@ class s
     } transaction;
 
     // Constructor
+    s();
     // Takes in a node id and a current session. The sess ID can be ignored and provided later as well
     s(uint8_t nodeId, uint8_t currentSession = 0x0);
 
@@ -81,14 +84,20 @@ class s
     header parseHeader(uint8_t *pyld);
 
     // Init transaction in buffer
-    bool initTransaction(transaction t);
+    bool initTransaction(transaction *t);
     // See if a transaction is buffered by frame number
     bool recentTransaction(uint8_t frame);
+    //
+    void devalidateTransaction(transaction *t);
+    bool addToTransaction(message *m, transaction *t);
 
     uint8_t *compress(uint8_t *pyld, uint16_t *len);
     uint8_t *decompress(uint8_t *pyld, uint16_t *len);
 
+    // Check if a message is valid based off TTL; returns if transaction is valid
     bool checkTTL(transaction *t);
+    transaction *getTransactionByFrameFBuffer(uint8_t frame);
+    uint8_t calcChecksum(uint8_t *pyld, uint16_t len);
 
     uint8_t lastDwnFrame = 0;
     uint8_t lastUpFrame = 0;
@@ -99,7 +108,7 @@ class s
 
     transaction *transactionBuffer;
     unsigned transactionBufferSize = 0;
-    unsigned transactionIndex = 0; // Used as sort of an ID
+    unsigned long transactionIndex = 0; // Used as sort of an ID
 
     bool compressData = false;
 

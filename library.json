@@ -24,6 +24,10 @@
         "url":"https://putzek.com/"
       }
     ],
+    "dependencies":{
+        "name": "brotli",
+        "version": "https://github.com/martinberlin/brotli.git"
+    },
     "version": "0.0.1",
     "frameworks": "arduino",
     "platforms": "*"

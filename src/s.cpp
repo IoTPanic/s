@@ -1,5 +1,10 @@
 #include <s.h>
 
+s::s(){
+    transactionBuffer = new transaction[DEFAULT_TRANSACTION_BUFFER_SIZE];
+    transactionBufferSize = DEFAULT_TRANSACTION_BUFFER_SIZE;
+}
+
 s::s(uint8_t nodeId, uint8_t sessID){
     nodeID = nodeId;
     currentSession = sessID;
@@ -28,19 +33,30 @@ uint8_t s::receive(uint8_t *pyld, uint16_t len){
     // If it isn't a recent transaction, we want to add it to our buffer
     if(!rt&&m.h.fragment==0){
         uint16_t received = 0;
-        s::transaction t = {transactionIndex++, len, m.transactionLength, NULL, m.transactionChecksum, m.transactionChecksum.frame, true, millis()};
+        s::transaction t;
+        // It is so dumb GCC 5 disallows default init of structs but not also brace enclosed inits.
+        t.index = transactionIndex++;        unsigned framesReceived = 0;
+
+        t.received = len;
+        t.chunksReceived++;
+        t.size= m.transactionLength;
         t.pyld = new uint8_t[t.size];
+        t.checksum = m.transactionChecksum;
+        t.frame = m.h.frame;
+        t.valid = true;
+        t.started = millis();
         if(!pyld){
             return RECEIVE_FAIL_OTHER;
         }
         memcpy(t.pyld, pyld, len); // Copy the pyld into the buffer
-        if(!initTransaction(t)){
+        if(!initTransaction(&t)){
             return RECEIVE_FAIL_OTHER;
         }
     }else{
-
+        if(!addToTransaction(&m, getTransactionByFrameFBuffer(m.h.frame))){
+            return RECEIVE_FAIL_OTHER;
+        }
     }
-
     return RECEIVE_NO_FAIL;
 }
 
@@ -105,7 +121,6 @@ s::header s::parseHeader(uint8_t *pyld){
         h.compressed = true;
         flags = flags ^ 0b00001000;
     }
-    // Add more flag code here as needed
     h.nodeID = pyld[1];
     h.session = pyld[2];
     h.frame = pyld[3];
@@ -117,10 +132,9 @@ s::header s::parseHeader(uint8_t *pyld){
 bool s::recentTransaction(uint8_t frame){
     for(unsigned i =0; i<transactionBufferSize;i++){
         if(transactionBuffer[i].valid){
-            if(millis()-transactionBuffer[i].started>=TTL){
+            if(!checkTTL(&transactionBuffer[i])){
                 // If time to live is passed, delete entry
-                transactionBuffer[i].valid = false;
-                delete []transactionBuffer[i].pyld;
+                devalidateTransaction(&transactionBuffer[i]);
             }else if(transactionBuffer[i].frame==frame){\
                 // If we found the frame, return true
                 return true;
@@ -130,16 +144,69 @@ bool s::recentTransaction(uint8_t frame){
     return false;
 }
 
-bool s::initTransaction(s::transaction t){
+bool s::initTransaction(s::transaction *t){
     for(unsigned i =0; i<transactionBufferSize; i++){
+        if(!checkTTL(&transactionBuffer[i])){
+            // If time to live is passed, delete entry
+            devalidateTransaction(&transactionBuffer[i]);
+        }
         if(!transactionBuffer[i].valid){
-            memcpy(&transactionBuffer[i], &t, sizeof(transaction));
+            memcpy(&transactionBuffer[i], t, sizeof(transaction));
             return true;
         }
     }
     return false;
 }
 
+bool s::addToTransaction(s::message *m, s::transaction *t){
+    if(m==NULL||t==NULL){
+        return false;
+    }
+    // Calculate the location in the buffer for the packet, they can come out of order as long as chunk 0 is received first
+    // This assumes all packets between chunk n+0 and n-1 are MAX_PACKET_LENGTH
+    unsigned loc = (MAX_PAYLOAD_SIZE - 3) + (MAX_PAYLOAD_SIZE*(t->chunksReceived-1));
+    memcpy(&t->pyld[loc], m->pyld, m->len);
+    t->received += m->len;
+    if(t->received==t->size){
+        if(calcChecksum(t->pyld, t->size)==t->checksum){
+            callback(t->pyld, t->size);
+        }
+        devalidateTransaction(t);
+    }
+    return true;
+}
+
+void s::devalidateTransaction(transaction *t){
+    if (t==NULL){
+        return;
+    }
+    t->valid = false;
+    delete []t->pyld;
+    return;
+}
+
 bool s::checkTTL(transaction *t){
-    
+    if (t==NULL){
+        return false;
+    }
+    if(millis()-t->started>=TTL){
+        return false;
+    }
+    return true;
+}
+
+s::transaction *s::getTransactionByFrameFBuffer(uint8_t frame){
+    for(unsigned i=0; i<transactionBufferSize; i++){
+        if(transactionBuffer[i].frame==frame,transactionBuffer[i].valid){
+            return &transactionBuffer[i];
+        }
+    }
+}
+
+uint8_t s::calcChecksum(uint8_t *pyld, uint16_t len){
+    uint8_t c = 0;
+    for(unsigned i=0; i<len;i++){
+        c = c ^ pyld[i];
+    }
+    return c;
 }
