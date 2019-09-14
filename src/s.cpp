@@ -193,17 +193,32 @@ bool s::addToTransaction(s::message *m, s::transaction *t){
         return false;
     }
     // Calculate the location in the buffer for the packet, they can come out of order as long as chunk 0 is received first
-    // This assumes all packets between chunk n+0 and n-1 are MAX_PACKET_LENGTH
+    // This assumes all packets between chunk n+0 and n-1 are MAX_PAYLOAD_SIZE
     unsigned loc = (MAX_PAYLOAD_SIZE - 3) + (MAX_PAYLOAD_SIZE*(t->chunksReceived-1));
     memcpy(&t->pyld[loc], m->pyld, m->len);
     t->received += m->len;
     if(t->received==t->size){
+        submitTransaction(t);
+    }
+    return true;
+}
+
+bool s::submitTransaction(transaction *t){
+    if(callback==NULL){
+        return NULL;
+    }
+    if(lastSubmittedFrame<=t->frame&&t->frame!=0){
+        #ifdef DEBUG
+        Serial.println("[ s ] Was about to submit out of order frame");
+        #endif
+        return false;
+    }
+    else{
         if(calcChecksum(t->pyld, t->size)==t->checksum){
             callback(t->pyld, t->size);
         }
-        devalidateTransaction(t);
     }
-    return true;
+    devalidateTransaction(t);
 }
 
 void s::devalidateTransaction(transaction *t){

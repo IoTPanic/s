@@ -11,7 +11,7 @@
 
 #define VERSION 0
 #define BROTLI_DECOMPRESSION_BUFFER 3000
-#define DEFAULT_TRANSACTION_BUFFER_SIZE 10
+#define DEFAULT_TRANSACTION_BUFFER_SIZE 5 // We need to find this sweet spot
 
 #define PKT_ACK 0x0
 #define PKT_STREAM 0x1
@@ -102,9 +102,12 @@ class s
     bool checkTTL(transaction *t);
     transaction *getTransactionByFrameFBuffer(uint8_t frame);
     uint8_t calcChecksum(uint8_t *pyld, uint16_t len);
+    bool submitTransaction(transaction *t);
 
     uint8_t lastDwnFrame = 0;
     uint8_t lastUpFrame = 0;
+
+    uint8_t lastSubmittedFrame = 0;
 
     // NodeID must not be 0
     uint8_t nodeID = 0;
@@ -113,6 +116,7 @@ class s
     transaction *transactionBuffer;
     unsigned transactionBufferSize = 0;
     unsigned long transactionIndex = 0; // Used as sort of an ID
+
 
     BrotliDecoderResult brotli_result;
 
