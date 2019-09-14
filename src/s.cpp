@@ -38,47 +38,49 @@ uint8_t s::receive(uint8_t *pyld, uint16_t len){
     if(m.h.nodeID!=nodeID){
         return RECEIVE_FAIL_INCORRECT_NODE;
     }
-    bool rt = recentTransaction(m.h.frame);
-    if(m.h.frame<lastDwnFrame&&!rt){
-        return RECEIVE_FAIL_BAD_FRAME_ID;
-    }
-    #ifdef DEBUG
-    Serial.println("[ s ] Got valid message");
-    #endif
-    // If it isn't a recent transaction, we want to add it to our buffer
-    if(!rt&&m.h.fragment==0){
-        uint16_t received = 0;
-        s::transaction t;
-        // It is so dumb GCC 5 disallows default init of structs but not also brace enclosed inits.
-        t.index = transactionIndex++;        unsigned framesReceived = 0;
 
-        t.received = len;
-        t.chunksReceived++;
-        t.size= m.transactionLength;
-        t.pyld = new uint8_t[t.size];
-        t.checksum = m.transactionChecksum;
-        t.frame = m.h.frame;
-        t.valid = true;
-        t.started = millis();
-        if(!pyld){
-            #ifdef DEBUG
-            Serial.println("[ s ] Failed to allocate buffer");
-            #endif
-            return RECEIVE_FAIL_OTHER;
+    if(m.h.type==PKT_STREAM){
+        bool rt = recentTransaction(m.h.frame);
+        if(m.h.frame<lastDwnFrame&&!rt){
+            return RECEIVE_FAIL_BAD_FRAME_ID;
         }
-        memcpy(t.pyld, pyld, len); // Copy the pyld into the buffer
-        if(!initTransaction(&t)){
-            #ifdef DEBUG
-            Serial.println("[ s ] Failed to create transaction");
-            #endif
-            return RECEIVE_FAIL_OTHER;
-        }
-    }else{
-        if(!addToTransaction(&m, getTransactionByFrameFBuffer(m.h.frame))){
-            #ifdef DEBUG
-            Serial.println("[ s ] Failed to add message to transaction");
-            #endif
-            return RECEIVE_FAIL_OTHER;
+        #ifdef DEBUG
+        Serial.println("[ s ] Got valid message");
+        #endif
+        // If it isn't a recent transaction, we want to add it to our buffer
+        if(!rt&&m.h.fragment==0){
+            uint16_t received = 0;
+            s::transaction t;
+            // It is so dumb GCC 5 disallows default init of structs but not also brace enclosed inits.
+            t.index = transactionIndex++;
+            t.received = len;
+            t.chunksReceived++;
+            t.size= m.transactionLength;
+            t.pyld = new uint8_t[t.size];
+            t.checksum = m.transactionChecksum;
+            t.frame = m.h.frame;
+            t.valid = true;
+            t.started = millis();
+            if(!pyld){
+                #ifdef DEBUG
+                Serial.println("[ s ] Failed to allocate buffer");
+                #endif
+                return RECEIVE_FAIL_OTHER;
+            }
+            memcpy(t.pyld, pyld, len); // Copy the pyld into the buffer
+            if(!initTransaction(&t)){
+                #ifdef DEBUG
+                Serial.println("[ s ] Failed to create transaction");
+                #endif
+                return RECEIVE_FAIL_OTHER;
+            }
+        }else{
+            if(!addToTransaction(&m, getTransactionByFrameFBuffer(m.h.frame))){
+                #ifdef DEBUG
+                Serial.println("[ s ] Failed to add message to transaction");
+                #endif
+                return RECEIVE_FAIL_OTHER;
+            }
         }
     }
     return RECEIVE_NO_FAIL;
@@ -151,6 +153,7 @@ s::header s::parseHeader(uint8_t *pyld){
         h.compressed = true;
         flags = flags ^ 0b00001000;
     }
+    h.type = flags;
     h.nodeID = pyld[1];
     h.session = pyld[2];
     h.frame = pyld[3];
