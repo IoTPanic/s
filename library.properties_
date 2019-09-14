@@ -1,0 +1,10 @@
+name=s
+version=0.0.1
+author=Samuel Archibald <samuel.archibald@gmail.com>
+maintainer=Samuel Archibald <samuel.archibald@gmail.com>
+sentence=Simple embedded streaming library
+paragraph=Supports basic streaming for limited memory platforms such as the ESP32. It can be used to stream any type of data packet and will chunck it for you as specified in the .h file
+category=Communication
+url=http://github.com/IoTPanic/s
+architectures=*
+includes=s.h

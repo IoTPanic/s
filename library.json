@@ -1,0 +1,30 @@
+{
+    "name": "s",
+    "keywords": "onewire, 1-wire, bus, sensor, temperature",
+    "description": "Simple embedded streaming library",
+    "repository":
+    {
+      "type": "git",
+      "url": "https://github.com/IoTPanic/s.git"
+    },
+    "authors":
+    [
+      {
+        "name": "Samuel Archibald",
+        "email": "samuel.archibald00@gmail.com",
+        "maintainer": true
+      },
+      {
+        "name": "Martin Fasani",
+        "url": "fasani.de",
+        "maintainer": true
+      },
+      {
+        "name": "Hendrik Putzek",
+        "url":"https://putzek.com/"
+      }
+    ],
+    "version": "0.0.1",
+    "frameworks": "arduino",
+    "platforms": "*"
+  }
