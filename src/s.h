@@ -22,10 +22,14 @@
 #define RECEIVE_FAIL_INVALID_SESSION 0x3 // Session did not match with the current session
 #define RECEIVE_FAIL_INCORRECT_NODE 0x4 // Packet was meant for another node
 #define RECEIVE_FAIL_BAD_FRAME_ID 0x5 // Frame was late or out of order
-#define RECEIVE_FAIL_OTHER 0x6
+#define RECEIVE_FAIL_COMPRESSION 0x6
+#define RECEIVE_FAIL_OTHER 0x7
 
-#define MAX_PAYLOAD_SIZE 1499 // WiFi frame with ESP, may need to make a little smaller due to overhead in the UDP lib
+#define FRAME_SIZE_LIMITATION 1500
+#define MAX_PAYLOAD_SIZE FRAME_SIZE_LIMITATION - 5 // WiFi frame with ESP, may need to make a little smaller due to overhead in the UDP lib
 #define TTL 1000
+
+#define DEBUG
 
 class s
 {
@@ -66,7 +70,7 @@ class s
     // Constructor
     s();
     // Takes in a node id and a current session. The sess ID can be ignored and provided later as well
-    s(uint8_t nodeId, uint8_t currentSession = 0x0);
+    s(uint8_t nodeId, uint8_t currentSession = 0x0, bool compress = false);
 
     void setCallback(void(*callbackFnc)(uint8_t *pyld, uint16_t len));
     void setNodeID(uint8_t ID);
@@ -109,6 +113,8 @@ class s
     transaction *transactionBuffer;
     unsigned transactionBufferSize = 0;
     unsigned long transactionIndex = 0; // Used as sort of an ID
+
+    BrotliDecoderResult brotli_result;
 
     bool compressData = false;
 

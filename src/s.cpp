@@ -5,15 +5,27 @@ s::s(){
     transactionBufferSize = DEFAULT_TRANSACTION_BUFFER_SIZE;
 }
 
-s::s(uint8_t nodeId, uint8_t sessID){
+s::s(uint8_t nodeId, uint8_t sessID, bool compress){
     nodeID = nodeId;
     currentSession = sessID;
     transactionBuffer = new transaction[DEFAULT_TRANSACTION_BUFFER_SIZE];
     transactionBufferSize = DEFAULT_TRANSACTION_BUFFER_SIZE;
+    compressData = compress;
 }
 
 uint8_t s::receive(uint8_t *pyld, uint16_t len){
-    s::message m = parseMessage(pyld, len);
+    s::message m;
+    if(compressData){
+        unsigned l =0;
+        uint8_t p[MAX_PAYLOAD_SIZE];
+        brotli_result = BrotliDecoderDecompress(len, pyld, &l, p);
+        if(!brotli_result){
+            return RECEIVE_FAIL_COMPRESSION;
+        }
+        m = parseMessage(p, l);
+    }else{
+        m = parseMessage(pyld, len);
+    }
     if(m.h.version!=VERSION){
         return RECEIVE_FAIL_BAD_HEADER;
     }
@@ -30,6 +42,9 @@ uint8_t s::receive(uint8_t *pyld, uint16_t len){
     if(m.h.frame<lastDwnFrame&&!rt){
         return RECEIVE_FAIL_BAD_FRAME_ID;
     }
+    #ifdef DEBUG
+    Serial.println("[ s ] Got valid message");
+    #endif
     // If it isn't a recent transaction, we want to add it to our buffer
     if(!rt&&m.h.fragment==0){
         uint16_t received = 0;
@@ -46,14 +61,23 @@ uint8_t s::receive(uint8_t *pyld, uint16_t len){
         t.valid = true;
         t.started = millis();
         if(!pyld){
+            #ifdef DEBUG
+            Serial.println("[ s ] Failed to allocate buffer");
+            #endif
             return RECEIVE_FAIL_OTHER;
         }
         memcpy(t.pyld, pyld, len); // Copy the pyld into the buffer
         if(!initTransaction(&t)){
+            #ifdef DEBUG
+            Serial.println("[ s ] Failed to create transaction");
+            #endif
             return RECEIVE_FAIL_OTHER;
         }
     }else{
         if(!addToTransaction(&m, getTransactionByFrameFBuffer(m.h.frame))){
+            #ifdef DEBUG
+            Serial.println("[ s ] Failed to add message to transaction");
+            #endif
             return RECEIVE_FAIL_OTHER;
         }
     }
@@ -76,10 +100,16 @@ void s::setSessionID(uint8_t sessionID){
 
 void s::disableCompression(){
     compressData = false;
+    #ifdef DEBUG
+    Serial.println("[ s ] Compression disabled");
+    #endif
 }
 
 void s::enableCompression(){
     compressData = true;
+    #ifdef DEBUG
+    Serial.println("[ s ] Compression enabled");
+    #endif
 }
 
 s::message s::parseMessage(uint8_t *pyld, uint16_t len){
