@@ -25,10 +25,15 @@ If the checksum is incorrect, the packet is dropped, and all buffers will have a
 ## Sessions
 A session is started via MQTT, and must be agreed upon by both the client and the application before using this layer. To create a session, a NODE_ID, SESSION_ID, and VERSION must be set.  The NODE_ID is a unsigned eight bit integer to identify a stream, the SESSION_ID is used to ensure the correct session is in operation after being set by MQTT, and the VERSION is used to prevent different versions from communicating when incompatible.
 
+
 ## Protocol
 
 ### Header
 
-The first byte of the header consists of a three bit version, a downstream flag, and a compressed flag (Rest of bits are reserved for future functions). After that, a nodeID byte, session byte, and frame counter are passed to complete the header. After that, the rest of length is message that can be passed to callback.
+The first byte of the header consists of a three bit version, a downstream flag, and a compressed flag, than a 3 bit type value. After that, a nodeID byte, session byte, and frame counter are passed to complete the header. After that, the rest of length is a part of a message that is not related to the header.
 
-If the compression bit is set, the test of the message has received brotli compression and required decompression.
+If the compression bit is set, the rest of the message has received brotli compression and requires decompression.
+
+### Message
+
+One every fragment zero of a transaction, the first two bytes of the message is the byte length as an unsigned 16-bit integer. After that, a 8-bit checksum follows and the payload than follows.
