@@ -36,4 +36,7 @@ If the compression bit is set, the rest of the message has received brotli compr
 
 ### Message
 
-One every fragment zero of a transaction, the first two bytes of the message is the byte length as an unsigned 16-bit integer. After that, a 8-bit checksum follows and the payload than follows.
+One every fragment zero of a transaction, the first two bytes of the message is the byte length as an unsigned 16-bit integer. After that, a 8-bit XOR checksum follows and the payload than follows.
+
+
+If the zero index packet is not recieved, the message is considered late and out of order and they will be dropped the same as a when the frame number received is smaller them the last recieved unless is a current transaction.
