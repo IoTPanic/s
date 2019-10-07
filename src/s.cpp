@@ -15,17 +15,7 @@ s::s(uint8_t nodeId, uint8_t sessID, bool compress){
 
 uint8_t s::receive(uint8_t *pyld, uint16_t len){
     s::message m;
-    if(compressData){
-        unsigned l =0;
-        uint8_t p[MAX_PAYLOAD_SIZE];
-        brotli_result = BrotliDecoderDecompress(len, pyld, &l, p);
-        if(!brotli_result){
-            return RECEIVE_FAIL_COMPRESSION;
-        }
-        m = parseMessage(p, l);
-    }else{
-        m = parseMessage(pyld, len);
-    }
+    m = parseMessage(pyld, len);
     if(m.h.version!=VERSION){
         return RECEIVE_FAIL_BAD_HEADER;
     }
@@ -38,10 +28,13 @@ uint8_t s::receive(uint8_t *pyld, uint16_t len){
     if(m.h.nodeID!=nodeID){
         return RECEIVE_FAIL_INCORRECT_NODE;
     }
+    if(!m.h.downstream){
+        return RECEIVE_FAIL_OTHER;
+    }
 
     if(m.h.type==PKT_STREAM){
         bool rt = recentTransaction(m.h.frame);
-        if(m.h.frame<lastDwnFrame&&!rt){
+        if((m.h.frame<lastDwnFrame&&!rt)||(m.h.frame==0&&lastDwnFrame<=255)){ // Message was not received before but it's frame number is smaller than the last one, therefore considered out of order, unless the counter is wrapping around
             return RECEIVE_FAIL_BAD_FRAME_ID;
         }
         #ifdef DEBUG
@@ -122,7 +115,13 @@ s::message s::parseMessage(uint8_t *pyld, uint16_t len){
         m.valid = false;
         return m;
     }
-    m.len = len - 5;
+    if(m.h.compressed&&len<5){ // If the header is set, and not just a header
+        uint8_t p[MAX_PAYLOAD_SIZE];
+        brotli_result = BrotliDecoderDecompress(len, pyld, &m.len, p);
+        if(!brotli_result){
+            return RECEIVE_FAIL_COMPRESSION;
+        }
+    }
     if(m.h.fragment==0){ // If this is the first fragment in the transaction, we want to gather the size and checksum
         m.transactionLength = pyld[5] | pyld[6]<<8;
         m.transactionChecksum = pyld[7];
@@ -178,9 +177,21 @@ bool s::recentTransaction(uint8_t frame){
 }
 
 bool s::initTransaction(s::transaction *t){
+    if(t->size<=t->received){
+        #ifdef DEBUG
+        Serial.println("Was a single packet, submitting to application instead of adding to buffer");
+        #endif
+        submitTransaction(t);
+        return true;
+    }
     for(unsigned i =0; i<transactionBufferSize; i++){
         if(!checkTTL(&transactionBuffer[i])){
             // If time to live is passed, delete entry
+            #ifdef
+            Serial.print("Devalidating transaction with frame ");
+            Serial.print(transactionBuffer[i].frame);
+            Serial.println(" due to TTL");
+            #endif
             devalidateTransaction(&transactionBuffer[i]);
         }
         if(!transactionBuffer[i].valid){
