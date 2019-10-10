@@ -117,9 +117,9 @@ s::message s::parseMessage(uint8_t *pyld, uint16_t len){
     }
     if(m.h.compressed&&len<5){ // If the header is set, and not just a header
         uint8_t p[MAX_PAYLOAD_SIZE];
-        brotli_result = BrotliDecoderDecompress(len, pyld, &m.len, p);
+        brotli_result = BrotliDecoderDecompress(len, pyld, (unsigned *)m.len, p);
         if(!brotli_result){
-            return RECEIVE_FAIL_COMPRESSION;
+            return m;
         }
     }
     if(m.h.fragment==0){ // If this is the first fragment in the transaction, we want to gather the size and checksum
@@ -187,7 +187,7 @@ bool s::initTransaction(s::transaction *t){
     for(unsigned i =0; i<transactionBufferSize; i++){
         if(!checkTTL(&transactionBuffer[i])){
             // If time to live is passed, delete entry
-            #ifdef
+            #ifdef DEBUG
             Serial.print("Devalidating transaction with frame ");
             Serial.print(transactionBuffer[i].frame);
             Serial.println(" due to TTL");
