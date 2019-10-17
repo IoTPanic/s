@@ -46,6 +46,15 @@ Once the number of bytes in the receiving buffer is the same as the length of th
 
 There is a constant `TTL` in `s.h` that will set the number of milliseconds from the first packet in a transaction until it is considered invalid. When the TTL is reached, the message is devalidated and the buffer is deallocated. 
 
+### Details
+
+### Sessions
+
+A zero session value is invalid, the s library will return a `RECEIVE_FAIL_ZERO_SESS` constant.
+
+Whenever a session ID is changed using `setSessionID(uint8_t)`, the frame counter resets so the next frame should be zero.
+
+
 ### Compression 
 
 When the compression bit is set, the compression method used is Brotli compression which can be found at the https://github.com/google/brotli which lowers the amount of data sent, especially when the data is in a pattern without much difficulty.

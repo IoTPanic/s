@@ -85,6 +85,7 @@ void s::setSessionID(uint8_t sessionID){
     currentSession = sessionID;
     lastDwnFrame = 0;
     lastUpFrame = 0;
+    lastSubmittedFrame = 0xff; // Reset frame counter
 }
 
 void s::disableCompression(){
