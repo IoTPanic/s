@@ -49,18 +49,11 @@ uint8_t s::receive(uint8_t *pyld, uint16_t len){
             t.received = len;
             t.chunksReceived++;
             t.size= m.transactionLength;
-            t.pyld = new uint8_t[t.size];
+            t.pyld = pyld;
             t.checksum = m.transactionChecksum;
             t.frame = m.h.frame;
             t.valid = true;
             t.started = millis();
-            if(!pyld){
-                #ifdef DEBUG
-                Serial.println("[ s ] Failed to allocate buffer");
-                #endif
-                return RECEIVE_FAIL_OTHER;
-            }
-            memcpy(t.pyld, pyld, len); // Copy the pyld into the buffer
             if(!initTransaction(&t)){
                 #ifdef DEBUG
                 Serial.println("[ s ] Failed to create transaction");
@@ -181,8 +174,7 @@ bool s::initTransaction(s::transaction *t){
         #ifdef DEBUG
         Serial.println("Was a single packet, submitting to application instead of adding to buffer");
         #endif
-        submitTransaction(t);
-        return true;
+        return submitTransaction(t);
     }
     for(unsigned i =0; i<transactionBufferSize; i++){
         if(!checkTTL(&transactionBuffer[i])){
@@ -217,9 +209,9 @@ bool s::addToTransaction(s::message *m, s::transaction *t){
     return true;
 }
 
-bool s::submitTransaction(transaction *t){
+bool s::submitTransaction(s::transaction *t){
     if(callback==NULL){
-        return NULL;
+        return false;
     }
     if(lastSubmittedFrame<=t->frame&&t->frame!=0){
         #ifdef DEBUG
@@ -236,12 +228,12 @@ bool s::submitTransaction(transaction *t){
     return true;
 }
 
-void s::devalidateTransaction(transaction *t){
+void s::devalidateTransaction(s::transaction *t){
     if (t==NULL){
         return;
     }
     t->valid = false;
-    delete []t->pyld;
+    //delete []t->pyld;
     return;
 }
 

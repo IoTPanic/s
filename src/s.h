@@ -122,6 +122,6 @@ class s
 
     bool compressData = false;
 
-    void (*callback)(uint8_t *pyld, uint16_t len);
+    void (*callback)(uint8_t *pyld, uint16_t len) = NULL;
 };
 #endif
