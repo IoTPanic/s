@@ -29,7 +29,9 @@
 #define MAX_PAYLOAD_SIZE FRAME_SIZE_LIMITATION - 5 // WiFi frame with ESP, may need to make a little smaller due to overhead in the UDP lib
 #define TTL 1000
 
-#define DEBUG
+#define DEBUG true
+
+#define DISABLE_CHECKSUM true
 
 class s
 {
@@ -107,7 +109,7 @@ class s
     uint8_t lastDwnFrame = 0;
     uint8_t lastUpFrame = 0;
 
-    uint8_t lastSubmittedFrame = 0;
+    uint8_t lastSubmittedFrame = 0xff;
 
     // NodeID must not be 0
     uint8_t nodeID = 0;

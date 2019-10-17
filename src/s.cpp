@@ -37,7 +37,7 @@ uint8_t s::receive(uint8_t *pyld, uint16_t len){
         if((m.h.frame<lastDwnFrame&&!rt)||(m.h.frame==0&&lastDwnFrame<=255)){ // Message was not received before but it's frame number is smaller than the last one, therefore considered out of order, unless the counter is wrapping around
             return RECEIVE_FAIL_BAD_FRAME_ID;
         }
-        #ifdef DEBUG
+        #if DEBUG
         Serial.println("[ s ] Got valid message");
         #endif
         // If it isn't a recent transaction, we want to add it to our buffer
@@ -49,20 +49,21 @@ uint8_t s::receive(uint8_t *pyld, uint16_t len){
             t.received = len;
             t.chunksReceived++;
             t.size= m.transactionLength;
-            t.pyld = pyld;
+            t.pyld = new uint8_t[m.transactionLength];
             t.checksum = m.transactionChecksum;
             t.frame = m.h.frame;
             t.valid = true;
             t.started = millis();
+            memcpy(t.pyld, &pyld[5], m.len);
             if(!initTransaction(&t)){
-                #ifdef DEBUG
+                #if DEBUG
                 Serial.println("[ s ] Failed to create transaction");
                 #endif
                 return RECEIVE_FAIL_OTHER;
             }
         }else{
             if(!addToTransaction(&m, getTransactionByFrameFBuffer(m.h.frame))){
-                #ifdef DEBUG
+                #if DEBUG
                 Serial.println("[ s ] Failed to add message to transaction");
                 #endif
                 return RECEIVE_FAIL_OTHER;
@@ -88,14 +89,14 @@ void s::setSessionID(uint8_t sessionID){
 
 void s::disableCompression(){
     compressData = false;
-    #ifdef DEBUG
+    #if DEBUG
     Serial.println("[ s ] Compression disabled");
     #endif
 }
 
 void s::enableCompression(){
     compressData = true;
-    #ifdef DEBUG
+    #if DEBUG
     Serial.println("[ s ] Compression enabled");
     #endif
 }
@@ -171,7 +172,7 @@ bool s::recentTransaction(uint8_t frame){
 
 bool s::initTransaction(s::transaction *t){
     if(t->size<=t->received){
-        #ifdef DEBUG
+        #if DEBUG
         Serial.println("Was a single packet, submitting to application instead of adding to buffer");
         #endif
         return submitTransaction(t);
@@ -179,7 +180,7 @@ bool s::initTransaction(s::transaction *t){
     for(unsigned i =0; i<transactionBufferSize; i++){
         if(!checkTTL(&transactionBuffer[i])){
             // If time to live is passed, delete entry
-            #ifdef DEBUG
+            #if DEBUG
             Serial.print("Devalidating transaction with frame ");
             Serial.print(transactionBuffer[i].frame);
             Serial.println(" due to TTL");
@@ -214,7 +215,7 @@ bool s::submitTransaction(s::transaction *t){
         return false;
     }
     if(lastSubmittedFrame<=t->frame&&t->frame!=0){
-        #ifdef DEBUG
+        #if DEBUG
         Serial.println("[ s ] Was about to submit out of order frame");
         #endif
         return false;
@@ -222,6 +223,10 @@ bool s::submitTransaction(s::transaction *t){
     else{
         if(calcChecksum(t->pyld, t->size)==t->checksum){
             callback(t->pyld, t->size);
+        }else{
+            #if DISABLE_CHECKSUM
+            callback(t->pyld, t->size);
+            #endif
         }
     }
     devalidateTransaction(t);
@@ -233,7 +238,7 @@ void s::devalidateTransaction(s::transaction *t){
         return;
     }
     t->valid = false;
-    //delete []t->pyld;
+    delete []t->pyld;
     return;
 }
 
