@@ -54,7 +54,7 @@ uint8_t s::receive(uint8_t *pyld, uint16_t len){
             t.frame = m.h.frame;
             t.valid = true;
             t.started = millis();
-            memcpy(t.pyld, &pyld[5], m.len);
+            memcpy(t.pyld, m.pyld, m.len);
             if(!initTransaction(&t)){
                 #if DEBUG
                 Serial.println("[ s ] Failed to create transaction");
