@@ -219,6 +219,7 @@ bool s::submitTransaction(s::transaction *t){
         #if DEBUG
         Serial.println("[ s ] Was about to submit out of order frame");
         #endif
+        devalidateTransaction(t);
         return false;
     }
     else{
@@ -238,6 +239,7 @@ void s::devalidateTransaction(s::transaction *t){
     if (t==NULL){
         return;
     }
+    Serial.println("Transaction devalidated");
     t->valid = false;
     delete []t->pyld;
     return;
