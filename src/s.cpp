@@ -239,7 +239,6 @@ void s::devalidateTransaction(s::transaction *t){
     if (t==NULL){
         return;
     }
-    Serial.println("Transaction devalidated");
     t->valid = false;
     delete []t->pyld;
     return;
